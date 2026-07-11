@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>房贷提前还款计算器 — 提前还 vs 不还，到底省多少利息</title>
+    <meta name="description" content="房贷提前还款计算器：等额本息/等额本金，支持提前还款对比，算清每年还多少本金和利息，提前还贷到底省多少钱。">
+    <meta property="og:title" content="房贷提前还款计算器">
+    <meta property="og:description" content="算清提前还款到底省多少利息，支持等额本息/等额本金两种方式。">
+    <meta name="theme-color" content="#1e40af">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+    </script>
+    <style>
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        :root {
+            --primary: #1e40af;
+            --primary-light: #3b82f6;
+            --primary-dark: #1e3a8a;
+            --primary-bg: #eff6ff;
+            --green: #059669;
+            --green-bg: #ecfdf5;
+            --green-light: #10b981;
+            --orange: #d97706;
+            --orange-bg: #fffbeb;
+            --red: #dc2626;
+            --red-bg: #fef2f2;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, .08), 0 1px 2px rgba(0, 0, 0, .04);
+            --shadow-lg: 0 4px 24px rgba(0, 0, 0, .10);
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+        }
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: var(--font);
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 0 0 60px 0;
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* ============================================================
+           HEADER
+           ============================================================ */
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            padding: 32px 16px 28px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+        }
+        .header p {
+            font-size: .92rem;
+            opacity: .85;
+            margin-top: 6px;
+        }
+
+        /* ============================================================
+           CARD
+           ============================================================ */
+        .card {
+            background: #fff;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title .icon {
+            font-size: 1.2rem;
+        }
+
+        /* ============================================================
+           FORM
+           ============================================================ */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+        .form-group label {
+            font-size: .85rem;
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+        .form-group .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-group .value-display {
+            font-size: .92rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .form-group input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--gray-200);
+            border-radius: 3px;
+            outline: none;
+            margin: 6px 0;
+            transition: background .15s;
+        }
+        .form-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(30, 64, 175, .3);
+            transition: transform .1s;
+        }
+        .form-group input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.12);
+        }
+        .form-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary);
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(30, 64, 175, .3);
+        }
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            font-size: .95rem;
+            font-family: var(--font);
+            transition: border-color .15s;
+            background: #fff;
+        }
+        .form-group input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 2px;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .9rem;
+            font-weight: 400;
+            cursor: pointer;
+            padding: 6px 14px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-sm);
+            transition: all .15s;
+            background: #fff;
+            color: var(--gray-600);
+        }
+        .radio-group label:has(input:checked) {
+            border-color: var(--primary-light);
+            background: var(--primary-bg);
+            color: var(--primary);
+            font-weight: 500;
+        }
+        .radio-group input[type="radio"] {
+            accent-color: var(--primary);
+        }
+
+        /* ============================================================
+           BUTTON
+           ============================================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-family: var(--font);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 64, 175, .25);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* ============================================================
+           RESULT STATS
+           ============================================================ */
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: var(--gray-50);
+            border-radius: var(--radius-sm);
+            padding: 14px 12px;
+            text-align: center;
+            border: 1px solid var(--gray-200);
+        }
+        .stat-card .label {
+            font-size: .78rem;
+            color: var(--gray-500);
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+        .stat-card .value.green {
+            color: var(--green);
+        }
+        .stat-card .value.blue {
+            color: var(--primary);
+        }
+        .stat-card .value.orange {
+            color: var(--orange);
+        }
+        .stat-card .sub {
+            font-size: .75rem;
+            color: var(--gray-400);
+            margin-top: 2px;
+        }
+        .stat-card.highlight {
+            background: var(--green-bg);
+            border-color: var(--green);
+        }
+        .stat-card.highlight .value {
+            color: var(--green);
+        }
+
+        .result-section-title {
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin: 20px 0 10px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--gray-100);
+        }
+
+        /* ============================================================
+           TABLE
+           ============================================================ */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 8px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .82rem;
+            min-width: 520px;
+        }
+        thead {
+            background: var(--gray-50);
+        }
+        th {
+            padding: 10px 12px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-600);
+            border-bottom: 1px solid var(--gray-200);
+            white-space: nowrap;
+        }
+        th:first-child {
+            text-align: center;
+        }
+        td {
+            padding: 8px 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--gray-100);
+            font-variant-numeric: tabular-nums;
+        }
+        td:first-child {
+            text-align: center;
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+        tbody tr:hover {
+            background: var(--primary-bg);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        tbody tr.total-row {
+            background: var(--gray-50);
+            font-weight: 600;
+        }
+        tbody tr.total-row td {
+            border-top: 2px solid var(--gray-300);
+        }
+
+        .highlight-row td {
+            background: #fef3c7 !important;
+        }
+        .highlight-row td:first-child {
+            position: relative;
+        }
+        .highlight-row td:first-child::after {
+            content: "⬅ 提前还款";
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%) translateX(-100%);
+            font-size: .7rem;
+            color: var(--orange);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .table-note {
+            font-size: .78rem;
+            color: var(--gray-400);
+            margin-top: 8px;
+        }
+
+        /* ============================================================
+           CHARTS
+           ============================================================ */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-height: 320px;
+            margin: 16px 0;
+        }
+        .chart-container canvas {
+            width: 100% !important;
+            height: auto !important;
+            max-height: 300px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================================
+           COMPARISON TABLE
+           ============================================================ */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .comparison-box {
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+        .comparison-box .title {
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+        .comparison-box .item {
+            display: flex;
+            justify-content: space-between;
+            font-size: .85rem;
+            padding: 3px 0;
+        }
+        .comparison-box .item .lbl {
+            color: var(--gray-500);
+        }
+        .comparison-box .item .val {
+            font-weight: 500;
+            color: var(--gray-800);
+        }
+        .comparison-box.original {
+            border-left: 3px solid var(--gray-400);
+        }
+        .comparison-box.prepay {
+            border-left: 3px solid var(--green);
+            background: var(--green-bg);
+        }
+        .saving-badge {
+            display: inline-block;
+            background: var(--green);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: .8rem;
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           TIPS / KNOWLEDGE BOX
+           ============================================================ */
+        .tip-box {
+            background: var(--primary-bg);
+            border-left: 4px solid var(--primary-light);
+            padding: 14px 16px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            margin-top: 16px;
+            font-size: .88rem;
+            line-height: 1.7;
+        }
+        .tip-box strong {
+            color: var(--primary);
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .form-group.full {
+                grid-column: 1;
+            }
+            .header h1 {
+                font-size: 1.25rem;
+            }
+            .card {
+                padding: 16px;
+            }
+            .result-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .stat-card {
+                padding: 10px 8px;
+            }
+            .stat-card .value {
+                font-size: 1rem;
+            }
+        }
+        @media (max-width: 400px) {
+            .result-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================================
+           UTILITY
+           ============================================================ */
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .mt-16 {
+            margin-top: 16px;
+        }
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* ============================================================
+           PRINT
+           ============================================================ */
+        @media print {
+            .header {
+                background: var(--primary) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .stat-card.highlight {
+                background: var(--green-bg) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .btn {
+                display: none;
+            }
+            .card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--gray-200);
+            }
+        }
+
+        /* ============================================================
+           FOOTER
+           ============================================================ */
+        .footer {
+            text-align: center;
+            padding: 32px 16px 0;
+            font-size: .8rem;
+            color: var(--gray-400);
+        }
+        .footer a {
+            color: var(--primary-light);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+    HEADER
+    ============================================================ -->
+    <header class="header">
+        <h1>🏠 房贷提前还款计算器</h1>
+        <p>提前还 &nbsp;vs&nbsp; 不提前还 &nbsp;·&nbsp; 到底省多少利息？</p>
+    </header>
+
+    <div class="container">
+
+        <!-- ============================================================
+        INPUT CARD
+        ============================================================ -->
+        <section class="card" id="inputCard">
+            <div class="card-title">
+                <span class="icon">📋</span> 贷款参数
+            </div>
+            <div class="form-grid">
+
+                <!-- 贷款金额 -->
+                <div class="form-group full">
+                    <div class="label-row">
+                        <label for="loanAmount">贷款金额</label>
+                        <span class="value-display" id="loanAmountDisplay">100 万元</span>
+                    </div>
+                    <input type="range" id="loanAmount" min="10" max="1000" value="100" step="5">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--gray-400)">
+                        <span>10万</span>
+                        <span>1000万</span>
+                    </div>
+                </div>
+
+                <!-- 年利率 -->
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="annualRate">年利率</label>
+                        <span class="value-display" id="annualRateDisplay">3.85%</span>
+                    </div>
+                    <input type="range" id="annualRate" min="100" max="600" value="385" step="5">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--gray-400)">
+                        <span>1.00%</span>
+                        <span>6.00%</span>
+                    </div>
+                </div>
+
+                <!-- 贷款年限 -->
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="loanYears">贷款年限</label>
+                        <span class="value-display" id="loanYearsDisplay">30 年</span>
+                    </div>
+                    <input type="range" id="loanYears" min="1" max="30" value="30" step="1">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--gray-400)">
+                        <span>1年</span>
+                        <span>30年</span>
+                    </div>
+                </div>
+
+                <!-- 还款方式 -->
+                <div class="form-group">
+                    <label>还款方式</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="repayMethod" value="equalPayment" checked> 等额本息</label>
+                        <label><input type="radio" name="repayMethod" value="equalPrincipal"> 等额本金</label>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--gray-200);margin:18px 0;">
+
+            <div class="card-title">
+                <span class="icon">💰</span> 提前还款方案
+            </div>
+            <div class="form-grid">
+
+                <!-- 提前还款金额 -->
+                <div class="form-group full">
+                    <div class="label-row">
+                        <label for="prepayAmount">提前还款金额</label>
+                        <span class="value-display" id="prepayAmountDisplay">0 万元</span>
+                    </div>
+                    <input type="range" id="prepayAmount" min="0" max="200" value="0" step="1">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--gray-400)">
+                        <span>0</span>
+                        <span>200万</span>
+                    </div>
+                </div>
+
+                <!-- 提前还款时间 -->
+                <div class="form-group">
+                    <div class="label-row">
+                        <label for="prepayYear">提前还款时间</label>
+                        <span class="value-display" id="prepayYearDisplay">第 5 年</span>
+                    </div>
+                    <input type="range" id="prepayYear" min="1" max="29" value="5" step="1">
+                    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--gray-400)">
+                        <span>第1年</span>
+                        <span>第29年</span>
+                    </div>
+                </div>
+
+                <!-- 还款后策略 -->
+                <div class="form-group">
+                    <label>提前还款后</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="prepayStrategy" value="shortenTerm" checked> 缩短年限，月供不变</label>
+                        <label><input type="radio" name="prepayStrategy" value="reducePayment"> 减少月供，年限不变</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-16">
+                <button class="btn btn-primary" id="calcBtn">📊 开始计算</button>
+            </div>
+        </section>
+
+        <!-- ============================================================
+        RESULTS
+        ============================================================ -->
+        <section id="results">
+            <!-- Filled by JS -->
+        </section>
+
+        <!-- ============================================================
+        FOOTER
+        ============================================================ -->
+        <div class="footer">
+            数据仅供参考，实际以银行合同为准 &nbsp;·&nbsp; 计算结果不构成投资建议
+        </div>
+
+    </div>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // DOM REFS
+        // ============================================================
+        const $ = id => document.getElementById(id);
+        const loanAmount = $('loanAmount');
+        const annualRate = $('annualRate');
+        const loanYears = $('loanYears');
+        const prepayAmount = $('prepayAmount');
+        const prepayYear = $('prepayYear');
+        const resultsContainer = $('results');
+
+        const loanAmountDsp = $('loanAmountDisplay');
+        const annualRateDsp = $('annualRateDisplay');
+        const loanYearsDsp = $('loanYearsDisplay');
+        const prepayAmountDsp = $('prepayAmountDisplay');
+        const prepayYearDsp = $('prepayYearDisplay');
+
+        let chartInstances = {};
+
+        // ============================================================
+        // UTILITY
+        // ============================================================
+        function getRadioValue(name) {
+            const el = document.querySelector(`input[name="${name}"]:checked`);
+            return el ? el.value : null;
+        }
+
+        function fmtMoney(v, digits = 0) {
+            if (v === null || v === undefined || isNaN(v)) return '—';
+            return v.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+        }
+
+        function fmtWan(v) {
+            if (v === null || v === undefined || isNaN(v)) return '—';
+            return (v / 10000).toFixed(1) + '万';
+        }
+
+        function fmtYuanWan(v) {
+            // Show as 万元 with 2 decimal places
+            const wan = v / 10000;
+            if (wan >= 100) return wan.toFixed(1) + '万';
+            return wan.toFixed(2) + '万';
+        }
+
+        // ============================================================
+        // SLIDER → DISPLAY SYNC
+        // ============================================================
+        loanAmount.addEventListener('input', () => {
+            loanAmountDsp.textContent = loanAmount.valueAsNumber + ' 万元';
+            // Cap prepay amount: max 80% of loan
+            const maxPrepay = Math.floor(loanAmount.valueAsNumber * 0.8);
+            prepayAmount.max = maxPrepay;
+            if (prepayAmount.valueAsNumber > maxPrepay) {
+                prepayAmount.value = prepayAmount.max;
+                prepayAmountDsp.textContent = prepayAmount.valueAsNumber + ' 万元';
+            }
+        });
+        annualRate.addEventListener('input', () => {
+            annualRateDsp.textContent = (annualRate.valueAsNumber / 100).toFixed(2) + '%';
+        });
+        loanYears.addEventListener('input', () => {
+            loanYearsDsp.textContent = loanYears.valueAsNumber + ' 年';
+            const maxPrepayYear = Math.max(1, loanYears.valueAsNumber - 1);
+            prepayYear.max = maxPrepayYear;
+            if (prepayYear.valueAsNumber > maxPrepayYear) {
+                prepayYear.value = prepayYear.max;
+                prepayYearDsp.textContent = '第 ' + prepayYear.valueAsNumber + ' 年';
+            }
+        });
+        prepayAmount.addEventListener('input', () => {
+            prepayAmountDsp.textContent = prepayAmount.valueAsNumber + ' 万元';
+        });
+        prepayYear.addEventListener('input', () => {
+            prepayYearDsp.textContent = '第 ' + prepayYear.valueAsNumber + ' 年';
+        });
+
+        // Initial sync
+        loanAmountDsp.textContent = loanAmount.valueAsNumber + ' 万元';
+        annualRateDsp.textContent = (annualRate.valueAsNumber / 100).toFixed(2) + '%';
+        loanYearsDsp.textContent = loanYears.valueAsNumber + ' 年';
+        prepayAmountDsp.textContent = prepayAmount.valueAsNumber + ' 万元';
+        prepayYearDsp.textContent = '第 ' + prepayYear.valueAsNumber + ' 年';
+        prepayAmount.max = Math.floor(loanAmount.valueAsNumber * 0.8);
+
+        // ============================================================
+        // CALCULATION ENGINE
+        // ============================================================
+
+        /**
+         * 等额本息月供
+         */
+        function equalPaymentMonthly(P, rMonthly, nMonths) {
+            if (rMonthly === 0) return P / nMonths;
+            return P * rMonthly * Math.pow(1 + rMonthly, nMonths) / (Math.pow(1 + rMonthly, nMonths) - 1);
+        }
+
+        /**
+         * Generate annual amortization schedule.
+         * @param {number} P - total loan principal (元)
+         * @param {number} annualRate - annual rate in %, e.g. 3.85
+         * @param {number} years - loan term in years
+         * @param {string} method - 'equalPayment' | 'equalPrincipal'
+         * @returns {Array} schedule - [{year, paymentTotal, principalTotal, interestTotal, endBalance}]
+         */
+        function generateAnnualSchedule(P, annualRate, years, method) {
+            const r = annualRate / 100 / 12;
+            const nMonths = years * 12;
+            const schedule = [];
+            let balance = P;
+
+            if (method === 'equalPayment') {
+                const monthly = equalPaymentMonthly(P, r, nMonths);
+                for (let y = 1; y <= years; y++) {
+                    let payTotal = 0,
+                        prinTotal = 0,
+                        intTotal = 0;
+                    for (let m = 1; m <= 12; m++) {
+                        if ((y - 1) * 12 + m > nMonths) break;
+                        const interest = balance * r;
+                        const principal = monthly - interest;
+                        balance -= principal;
+                        payTotal += monthly;
+                        prinTotal += principal;
+                        intTotal += interest;
+                    }
+                    schedule.push({
+                        year: y,
+                        paymentTotal: payTotal,
+                        principalTotal: prinTotal,
+                        interestTotal: intTotal,
+                        endBalance: Math.max(0, balance)
+                    });
+                }
+            } else {
+                // 等额本金
+                const monthlyPrincipal = P / nMonths;
+                for (let y = 1; y <= years; y++) {
+                    let payTotal = 0,
+                        prinTotal = 0,
+                        intTotal = 0;
+                    for (let m = 1; m <= 12; m++) {
+                        const idx = (y - 1) * 12 + m;
+                        if (idx > nMonths) break;
+                        const interest = balance * r;
+                        const principal = Math.min(monthlyPrincipal, balance);
+                        balance -= principal;
+                        payTotal += principal + interest;
+                        prinTotal += principal;
+                        intTotal += interest;
+                    }
+                    schedule.push({
+                        year: y,
+                        paymentTotal: payTotal,
+                        principalTotal: prinTotal,
+                        interestTotal: intTotal,
+                        endBalance: Math.max(0, balance)
+                    });
+                }
+            }
+            return schedule;
+        }
+
+        /**
+         * Find the year index in a schedule where balance > 0 and year >= targetYear.
+         * Returns the first year matching, or the last non-zero year.
+         */
+        function findPrepayYearInSchedule(schedule, targetYear) {
+            for (let i = 0; i < schedule.length; i++) {
+                if (schedule[i].year >= targetYear && schedule[i].endBalance > 0) {
+                    return i;
+                }
+            }
+            return schedule.length - 1;
+        }
+
+        /**
+         * Calculate prepayment scenario.
+         * @param {Object} params
+         * @returns {Object} { originalSchedule, prepaySchedule, originalSummary, prepaySummary, prepayYearIndex, prepayYearLabel }
+         */
+        function calcAll(params) {
+            const P = params.loanAmount * 10000; // 万元→元
+            const rate = params.annualRate;
+            const years = params.loanYears;
+            const method = params.repayMethod;
+            const prepayAmountYuan = params.prepayAmount * 10000;
+            const prepayYearTarget = params.prepayYear;
+            const strategy = params.prepayStrategy;
+
+            // --- Original schedule ---
+            const originalSchedule = generateAnnualSchedule(P, rate, years, method);
+
+            // --- Original summary ---
+            const originalTotalPayment = originalSchedule.reduce((s, r) => s + r.paymentTotal, 0);
+            const originalTotalInterest = originalSchedule.reduce((s, r) => s + r.interestTotal, 0);
+            const originalMonthly = method === 'equalPayment' ?
+                equalPaymentMonthly(P, rate / 100 / 12, years * 12) :
+                (P / (years * 12) + P * rate / 100 / 12); // first month
+
+            // --- Prepay year index ---
+            const prepayIdx = findPrepayYearInSchedule(originalSchedule, prepayYearTarget);
+            const prepayYearActual = originalSchedule[prepayIdx].year;
+
+            // Balance before prepayment = end balance of previous year
+            const balanceBeforePrepay = prepayIdx === 0 ? P : originalSchedule[prepayIdx - 1].endBalance;
+            const prepayEffective = Math.min(prepayAmountYuan, balanceBeforePrepay);
+            const newBalance = balanceBeforePrepay - prepayEffective;
+
+            // Already paid: sum of payments up to (but not including) prepay year
+            const paidUpToPrepay = originalSchedule.slice(0, prepayIdx).reduce((s, r) => s + r.paymentTotal, 0);
+            const interestPaidUpToPrepay = originalSchedule.slice(0, prepayIdx).reduce((s, r) => s + r.interestTotal, 0);
+
+            // --- Build prepay schedule from prepay point onward ---
+            const remainingYearsFull = years - prepayYearActual;
+            const rMonthly = rate / 100 / 12;
+
+            let prepayScheduleAfter = [];
+            let newMonthly, newTotalMonths, newTotalPaymentAfter, newTotalInterestAfter;
+
+            if (newBalance <= 0.01) {
+                // Paid off entirely
+                newMonthly = 0;
+                newTotalMonths = 0;
+                newTotalPaymentAfter = 0;
+                newTotalInterestAfter = 0;
+                prepayScheduleAfter = [];
+            } else if (strategy === 'shortenTerm') {
+                // Keep monthly payment same, shorten term
+                const oldMonthly = method === 'equalPayment' ?
+                    equalPaymentMonthly(P, rMonthly, years * 12) :
+                    // For equal principal, use the payment at prepay moment
+                    (P / (years * 12) + balanceBeforePrepay * rMonthly);
+                newMonthly = oldMonthly;
+
+                if (newMonthly <= newBalance * rMonthly) {
+                    // Monthly payment can't cover interest — fallback to reducePayment
+                    return calcAll({ ...params, prepayStrategy: 'reducePayment' });
+                }
+
+                // n = log(m / (m - B*r)) / log(1+r)
+                const nCalc = Math.log(newMonthly / (newMonthly - newBalance * rMonthly)) / Math.log(1 + rMonthly);
+                newTotalMonths = Math.ceil(nCalc);
+                // Cap at remaining years * 12 * 2 to avoid infinite loops
+                const maxMonths = remainingYearsFull * 12 * 2;
+                if (newTotalMonths > maxMonths || !isFinite(newTotalMonths)) {
+                    newTotalMonths = Math.ceil(remainingYearsFull * 12);
+                    // Recalculate monthly for that term
+                    newMonthly = equalPaymentMonthly(newBalance, rMonthly, newTotalMonths);
+                }
+
+                // Generate remaining schedule
+                let bal = newBalance;
+                const monthsGenerated = Math.min(newTotalMonths, maxMonths);
+                for (let m = 1; m <= monthsGenerated; m++) {
+                    const interest = bal * rMonthly;
+                    const principal = newMonthly - interest;
+                    if (principal <= 0 || bal <= 0) break;
+                    bal -= principal;
+                    // Group by year
+                    const yr = Math.floor((m - 1) / 12) + 1;
+                    if (!prepayScheduleAfter[yr - 1]) {
+                        prepayScheduleAfter[yr - 1] = { year: yr, paymentTotal: 0, principalTotal: 0, interestTotal: 0,
+                            endBalance: 0 };
+                    }
+                    prepayScheduleAfter[yr - 1].paymentTotal += newMonthly;
+                    prepayScheduleAfter[yr - 1].principalTotal += principal;
+                    prepayScheduleAfter[yr - 1].interestTotal += interest;
+                    prepayScheduleAfter[yr - 1].endBalance = Math.max(0, bal);
+                }
+                // Fix endBalance for each year
+                for (let i = prepayScheduleAfter.length - 1; i >= 0; i--) {
+                    if (i < prepayScheduleAfter.length - 1) {
+                        prepayScheduleAfter[i].endBalance = prepayScheduleAfter[i + 1].endBalance + prepayScheduleAfter[i + 1]
+                            .principalTotal;
+                    } else {
+                        prepayScheduleAfter[i].endBalance = 0;
+                    }
+                }
+
+                newTotalMonths = prepayScheduleAfter.reduce((s, yr) => s + 12, 0);
+                // Adjust: last year may be partial
+                const totalPayments = prepayScheduleAfter.reduce((s, yr) => s + yr.paymentTotal, 0);
+                newTotalPaymentAfter = totalPayments;
+                newTotalInterestAfter = newTotalPaymentAfter - newBalance;
+
+            } else {
+                // reducePayment: keep same term, recalculate monthly
+                const remainMonths = Math.max(1, remainingYearsFull * 12);
+                if (rMonthly === 0) {
+                    newMonthly = newBalance / remainMonths;
+                } else {
+                    newMonthly = newBalance * rMonthly * Math.pow(1 + rMonthly, remainMonths) /
+                        (Math.pow(1 + rMonthly, remainMonths) - 1);
+                }
+                newTotalMonths = remainMonths;
+
+                // Generate schedule
+                let bal = newBalance;
+                for (let m = 1; m <= remainMonths; m++) {
+                    const interest = bal * rMonthly;
+                    const principal = newMonthly - interest;
+                    if (bal <= 0) break;
+                    bal -= principal;
+                    const yr = Math.floor((m - 1) / 12) + 1;
+                    if (!prepayScheduleAfter[yr - 1]) {
+                        prepayScheduleAfter[yr - 1] = { year: yr, paymentTotal: 0, principalTotal: 0, interestTotal: 0,
+                            endBalance: 0 };
+                    }
+                    prepayScheduleAfter[yr - 1].paymentTotal += newMonthly;
+                    prepayScheduleAfter[yr - 1].principalTotal += principal;
+                    prepayScheduleAfter[yr - 1].interestTotal += interest;
+                    prepayScheduleAfter[yr - 1].endBalance = Math.max(0, bal);
+                }
+                // Fix endBalance
+                for (let i = prepayScheduleAfter.length - 1; i >= 0; i--) {
+                    if (i < prepayScheduleAfter.length - 1) {
+                        prepayScheduleAfter[i].endBalance = prepayScheduleAfter[i + 1].endBalance + prepayScheduleAfter[i + 1]
+                            .principalTotal;
+                    } else {
+                        prepayScheduleAfter[i].endBalance = 0;
+                    }
+                }
+
+                newTotalPaymentAfter = prepayScheduleAfter.reduce((s, yr) => s + yr.paymentTotal, 0);
+                newTotalInterestAfter = newTotalPaymentAfter - newBalance;
+            }
+
+            // --- Full prepay schedule (before + after) ---
+            const prepaySchedule = [
+                ...originalSchedule.slice(0, prepayIdx).map(r => ({ ...r, isPrepayPeriod: false })),
+                ...prepayScheduleAfter.map(r => ({ ...r, isPrepayPeriod: true }))
+            ];
+            // Mark prepay year
+            if (prepayIdx < prepaySchedule.length) {
+                prepaySchedule[prepayIdx].isPrepayYear = true;
+            }
+
+            // --- Prepay summary ---
+            const prepayTotalPayment = prepaySchedule.reduce((s, r) => s + r.paymentTotal, 0) + prepayEffective;
+            const prepayTotalInterest = prepaySchedule.reduce((s, r) => s + r.interestTotal, 0);
+            const interestSaved = originalTotalInterest - prepayTotalInterest;
+            const yearsShortened = years - (prepayScheduleAfter.length + prepayYearActual);
+            const actualYearsAfter = prepayScheduleAfter.length;
+
+            // --- Year-by-year comparison ---
+            const maxYears = Math.max(originalSchedule.length, prepaySchedule.length);
+            const yearComparison = [];
+            for (let y = 1; y <= maxYears; y++) {
+                const orig = originalSchedule.find(r => r.year === y);
+                const prep = prepaySchedule.find(r => r.year === y);
+                yearComparison.push({
+                    year: y,
+                    origPayment: orig ? orig.paymentTotal : 0,
+                    origPrincipal: orig ? orig.principalTotal : 0,
+                    origInterest: orig ? orig.interestTotal : 0,
+                    origBalance: orig ? orig.endBalance : 0,
+                    prepayPayment: prep ? prep.paymentTotal : 0,
+                    prepayPrincipal: prep ? prep.principalTotal : 0,
+                    prepayInterest: prep ? prep.interestTotal : 0,
+                    prepayBalance: prep ? prep.endBalance : 0,
+                    isPrepayYear: prep ? prep.isPrepayYear : false,
+                    isDone: !!prep
+                });
+            }
+
+            // Prepayment month label
+            const prepayMonthLabel = prepayIdx * 12 + 1; // approximate month
+
+            return {
+                originalSchedule,
+                prepaySchedule,
+                originalSummary: {
+                    totalPayment: originalTotalPayment,
+                    totalInterest: originalTotalInterest,
+                    monthlyPayment: originalMonthly,
+                    termYears: years
+                },
+                prepaySummary: {
+                    totalPayment: prepayTotalPayment,
+                    totalInterest: prepayTotalInterest,
+                    monthlyPayment: newMonthly,
+                    termYearsAfter: actualYearsAfter,
+                    termYearsTotal: prepayYearActual + actualYearsAfter,
+                    interestSaved: interestSaved,
+                    yearsShortened: Math.max(0, years - (prepayYearActual + actualYearsAfter)),
+                    prepayAmount: prepayEffective,
+                    prepayYearActual: prepayYearActual,
+                    strategy: strategy === 'shortenTerm' ? '缩短年限，月供不变' : '减少月供，年限不变'
+                },
+                yearComparison,
+                prepayInfo: {
+                    balanceBeforePrepay,
+                    prepayEffective,
+                    newBalance,
+                    prepayIdx,
+                    prepayYearActual,
+                    paidUpToPrepay,
+                    interestPaidUpToPrepay
+                }
+            };
+        }
+
+        // ============================================================
+        // RENDER
+        // ============================================================
+
+        function renderResults(data) {
+            const { originalSummary, prepaySummary, yearComparison, prepayInfo } = data;
+
+            // Don't render if no prepayment
+            const hasPrepay = prepaySummary.prepayAmount > 0;
+
+            let html = `
+            <!-- ============================================================
+                 SUMMARY STATS
+                 ============================================================ -->
+            <section class="card" id="summaryCard">
+                <div class="card-title"><span class="icon">📊</span> 还款对比总览</div>
+                <div class="result-stats">
+                    <div class="stat-card">
+                        <div class="label">贷款总额</div>
+                        <div class="value blue">${fmtYuanWan(originalSummary.totalPayment - originalSummary.totalInterest)}</div>
+                        <div class="sub">本金</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">💰 原方案总利息</div>
+                        <div class="value">${fmtYuanWan(originalSummary.totalInterest)}</div>
+                        <div class="sub">不提前还款</div>
+                    </div>`;
+
+            if (hasPrepay) {
+                html += `
+                    <div class="stat-card highlight">
+                        <div class="label">✅ 提前还款总利息</div>
+                        <div class="value green">${fmtYuanWan(prepaySummary.totalInterest)}</div>
+                        <div class="sub">节省 <strong>${fmtYuanWan(prepaySummary.interestSaved)}</strong></div>
+                    </div>
+                    <div class="stat-card" style="background:var(--orange-bg);border-color:var(--orange);">
+                        <div class="label">⏱ 节省年限</div>
+                        <div class="value orange">${prepaySummary.yearsShortened} 年</div>
+                        <div class="sub">原 ${originalSummary.termYears}年 → 实还 ${prepaySummary.termYearsTotal}年</div>
+                    </div>`;
+            } else {
+                html += `
+                    <div class="stat-card">
+                        <div class="label">月供金额</div>
+                        <div class="value blue">${fmtMoney(originalSummary.monthlyPayment, 2)} 元</div>
+                        <div class="sub">${originalSummary.termYears}年 ${getRadioValue('repayMethod') === 'equalPayment' ? '等额本息' : '等额本金'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">还款总额</div>
+                        <div class="value">${fmtYuanWan(originalSummary.totalPayment)}</div>
+                        <div class="sub">本金 + 利息</div>
+                    </div>`;
+            }
+
+            html += `</div>`;
+
+            // --- Prepay detail ---
+            if (hasPrepay) {
+                const origMonthly = originalSummary.monthlyPayment;
+                const newMonthly = prepaySummary.monthlyPayment;
+                const monthlySame = Math.abs(origMonthly - newMonthly) < 0.01;
+
+                html += `
+                <div class="comparison-grid mt-16">
+                    <div class="comparison-box original">
+                        <div class="title">📌 原方案（不提前还款）</div>
+                        <div class="item"><span class="lbl">月供</span><span class="val">${fmtMoney(origMonthly, 2)} 元</span></div>
+                        <div class="item"><span class="lbl">利息总额</span><span class="val">${fmtYuanWan(originalSummary.totalInterest)}</span></div>
+                        <div class="item"><span class="lbl">还款总额</span><span class="val">${fmtYuanWan(originalSummary.totalPayment)}</span></div>
+                        <div class="item"><span class="lbl">还款年限</span><span class="val">${originalSummary.termYears} 年</span></div>
+                    </div>
+                    <div class="comparison-box prepay">
+                        <div class="title">✅ 提前还款方案</div>
+                        <div class="item"><span class="lbl">策略</span><span class="val">${prepaySummary.strategy}</span></div>
+                        <div class="item"><span class="lbl">月供</span><span class="val">${monthlySame ? fmtMoney(origMonthly, 2) + ' 元（不变）' : fmtMoney(newMonthly, 2) + ' 元'}</span></div>
+                        <div class="item"><span class="lbl">利息总额</span><span class="val">${fmtYuanWan(prepaySummary.totalInterest)} <span class="saving-badge">省 ${fmtYuanWan(prepaySummary.interestSaved)}</span></span></div>
+                        <div class="item"><span class="lbl">实际还款年限</span><span class="val">${prepaySummary.termYearsTotal} 年 <span style="color:var(--green);font-weight:500;">（缩短 ${prepaySummary.yearsShortened} 年）</span></span></div>
+                    </div>
+                </div>
+
+                <div class="tip-box">
+                    <strong>💡 关键数字：</strong>
+                    你在第 <strong>${prepayInfo.prepayYearActual}</strong> 年提前还款 <strong>${fmtYuanWan(prepayInfo.prepayEffective)}</strong>，
+                    当时剩余本金 <strong>${fmtYuanWan(prepayInfo.balanceBeforePrepay)}</strong>，
+                    已还利息 <strong>${fmtYuanWan(prepayInfo.interestPaidUpToPrepay)}</strong>。
+                    提前还款后，总利息从 <strong>${fmtYuanWan(originalSummary.totalInterest)}</strong> 降至 <strong>${fmtYuanWan(prepaySummary.totalInterest)}</strong>，
+                    <strong style="color:var(--green);font-size:1.05rem;">共节省利息 ${fmtYuanWan(prepaySummary.interestSaved)}</strong>。
+                    ${prepaySummary.yearsShortened > 0 ? `还款年限缩短了 <strong>${prepaySummary.yearsShortened} 年</strong>。` : ''}
+                </div>
+                `;
+            }
+
+            html += `</section>`;
+
+            // ============================================================
+            // CHARTS
+            // ============================================================
+            html += `
+            <section class="card" id="chartCard">
+                <div class="card-title"><span class="icon">📈</span> 利息对比</div>
+                <div class="chart-grid">
+                    <div>
+                        <div style="font-size:.85rem;font-weight:500;color:var(--gray-500);margin-bottom:4px;text-align:center;">总利息对比</div>
+                        <div class="chart-container"><canvas id="interestCompareChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div style="font-size:.85rem;font-weight:500;color:var(--gray-500);margin-bottom:4px;text-align:center;">剩余本金变化趋势</div>
+                        <div class="chart-container"><canvas id="balanceChart"></canvas></div>
+                    </div>
+                </div>
+            </section>
+            `;
+
+            // ============================================================
+            // YEAR-BY-YEAR TABLE
+            // ============================================================
+            html += `
+            <section class="card" id="tableCard">
+                <div class="card-title"><span class="icon">📋</span> 逐年还款明细对比</div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align:center;">年份</th>
+                                <th colspan="2" style="text-align:center;border-right:1px solid var(--gray-200);">原方案</th>
+                                <th colspan="2" style="text-align:center;">提前还款后</th>
+                            </tr>
+                            <tr>
+                                <th></th>
+                                <th>年还款</th>
+                                <th style="border-right:1px solid var(--gray-200);">其中利息</th>
+                                <th>年还款</th>
+                                <th>其中利息</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            for (const row of yearComparison) {
+                const highlight = row.isPrepayYear ? ' style="background:#fef3c7;"' : '';
+                const done = !row.isDone && hasPrepay ? ' style="color:var(--gray-300);"' : '';
+                html += `
+                            <tr${highlight}>
+                                <td${done}>${row.year}</td>
+                                <td${done}>${row.origPayment > 0 ? fmtYuanWan(row.origPayment) : '—'}</td>
+                                <td${done} style="border-right:1px solid var(--gray-200);">${row.origInterest > 0 ? fmtYuanWan(row.origInterest) : '—'}</td>
+                                <td${done}>${hasPrepay && row.prepayPayment > 0 ? fmtYuanWan(row.prepayPayment) : (row.isDone ? fmtYuanWan(row.prepayPayment) : '—')}</td>
+                                <td${done}>${hasPrepay && row.prepayInterest > 0 ? fmtYuanWan(row.prepayInterest) : (row.isDone ? fmtYuanWan(row.prepayInterest) : '—')}</td>
+                            </tr>`;
+            }
+
+            // Totals row
+            const origTotalPay = yearComparison.reduce((s, r) => s + r.origPayment, 0);
+            const origTotalInt = yearComparison.reduce((s, r) => s + r.origInterest, 0);
+            const prepayTotalPay = yearComparison.reduce((s, r) => s + r.prepayPayment, 0);
+            const prepayTotalInt = yearComparison.reduce((s, r) => s + r.prepayInterest, 0);
+
+            html += `
+                            <tr class="total-row">
+                                <td>合计</td>
+                                <td>${fmtYuanWan(origTotalPay)}</td>
+                                <td style="border-right:1px solid var(--gray-200);">${fmtYuanWan(origTotalInt)}</td>
+                                <td>${hasPrepay ? fmtYuanWan(prepayTotalPay) : '—'}</td>
+                                <td>${hasPrepay ? fmtYuanWan(prepayTotalInt) : '—'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-note">
+                    ${hasPrepay ? '🟡 黄色背景行 = 提前还款发生的年份 · ' : ''}
+                    实际数据以银行账单为准，本表为等额本息/本金算法估算。
+                </div>
+            </section>
+            `;
+
+            // ============================================================
+            // KNOWLEDGE TIPS
+            // ============================================================
+            html += `
+            <section class="card" id="tipCard">
+                <div class="card-title"><span class="icon">💡</span> 提前还款，你关心的几个问题</div>
+
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:600;color:var(--gray-700);margin-bottom:4px;">1. 提前还款到底划不划算？</div>
+                    <div style="font-size:.9rem;color:var(--gray-600);">
+                        主要看你的 <strong>贷款利率</strong> 和 <strong>剩余期限</strong>。利率越高、剩余期限越长，提前还省下的利息越多。
+                        一般贷款前 <strong>1/3 期限内</strong> 提前还款节省效果最明显（因为前期利息占比高）。
+                        如果你有年化收益高于房贷利率的投资渠道，那就不一定非要提前还。
+                    </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:600;color:var(--gray-700);margin-bottom:4px;">2. 缩短年限 vs 减少月供，选哪个？</div>
+                    <div style="font-size:.9rem;color:var(--gray-600);">
+                        <strong>缩短年限</strong>：月供不变，但更快还完，省的总利息更多。<br>
+                        <strong>减少月供</strong>：还款压力变小，但省的总利息相对少一些。<br>
+                        如果现金流没问题，推荐选 <strong>缩短年限</strong>，省得更多。
+                    </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:600;color:var(--gray-700);margin-bottom:4px;">3. 提前还的是本金还是利息？</div>
+                    <div style="font-size:.9rem;color:var(--gray-600);">
+                        提前还的 <strong>全部是本金</strong>。还完之后，剩余本金重新计算利息。
+                        所以你看到的 "节省利息"，是因为本金减少了，后续要计算的利息自然就少了。
+                        不存在 "把利息先还了" 的说法——利息是按剩余本金 × 利率逐月计算的，本金少了，利息就少了。
+                    </div>
+                </div>
+                <div>
+                    <div style="font-weight:600;color:var(--gray-700);margin-bottom:4px;">4. 注意事项</div>
+                    <div style="font-size:.9rem;color:var(--gray-600);">
+                        • 部分银行对提前还款有 <strong>违约金</strong>（通常为 1-3 个月利息），请先确认合同条款<br>
+                        • 公积金贷款和商业贷款利率不同，本计算器按统一利率计算<br>
+                        • 部分城市有 <strong>最低还款金额</strong> 限制，请咨询贷款银行<br>
+                        • 提前还款后记得去银行打印 <strong>新的还款计划表</strong>
+                    </div>
+                </div>
+            </section>
+            `;
+
+            resultsContainer.innerHTML = html;
+
+            // --- Render charts ---
+            renderCharts(data);
+
+            // Scroll to results
+            document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ============================================================
+        // CHARTS
+        // ============================================================
+        function renderCharts(data) {
+            const { originalSummary, prepaySummary, yearComparison, originalSchedule } = data;
+            const hasPrepay = prepaySummary.prepayAmount > 0;
+
+            // Destroy previous chart instances
+            Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch (e) {} });
+            chartInstances = {};
+
+            // --- Chart 1: Interest comparison ---
+            const ctx1 = document.getElementById('interestCompareChart');
+            if (ctx1) {
+                const labels = hasPrepay ? ['原方案总利息', '提前还款总利息', '节省利息'] : ['总利息'];
+                const values = hasPrepay ? [
+                    Math.round(originalSummary.totalInterest),
+                    Math.round(prepaySummary.totalInterest),
+                    Math.round(prepaySummary.interestSaved)
+                ] : [Math.round(originalSummary.totalInterest)];
+                const colors = hasPrepay ? ['#6b7280', '#10b981', '#f59e0b'] : ['#3b82f6'];
+
+                chartInstances.interest = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderRadius: 6,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => fmtYuanWan(ctx.parsed.y) + ' 元'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: v => fmtYuanWan(v)
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // --- Chart 2: Balance over time ---
+            const ctx2 = document.getElementById('balanceChart');
+            if (ctx2) {
+                const maxYears = Math.max(originalSchedule.length, yearComparison.filter(r => r.isDone).length);
+                const labels = Array.from({ length: maxYears }, (_, i) => '第' + (i + 1) + '年');
+
+                const origBalances = originalSchedule.map(r => Math.round(r.endBalance));
+                const prepayBalances = yearComparison.filter(r => r.isDone).map(r => Math.round(r.prepayBalance));
+
+                // Pad prepay to same length
+                while (prepayBalances.length < origBalances.length) {
+                    prepayBalances.push(null);
+                }
+
+                chartInstances.balance = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: '原方案剩余本金',
+                            data: origBalances,
+                            borderColor: '#6b7280',
+                            backgroundColor: 'rgba(107,114,128,0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            pointHitRadius: 8,
+                        }, {
+                            label: '提前还款后剩余本金',
+                            data: hasPrepay ? prepayBalances : origBalances.map(() => null),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16,185,129,0.08)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            pointHitRadius: 8,
+                            borderDash: hasPrepay ? [6, 3] : [],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { boxWidth: 12, padding: 12, font: { size: 11 } }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => ctx.dataset.label + ': ' + fmtYuanWan(ctx.parsed.y)
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: v => fmtYuanWan(v)
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ============================================================
+        // MAIN CALC
+        // ============================================================
+        function calculate() {
+            const params = {
+                loanAmount: loanAmount.valueAsNumber,
+                annualRate: annualRate.valueAsNumber / 100,
+                loanYears: loanYears.valueAsNumber,
+                repayMethod: getRadioValue('repayMethod'),
+                prepayAmount: prepayAmount.valueAsNumber,
+                prepayYear: prepayYear.valueAsNumber,
+                prepayStrategy: getRadioValue('prepayStrategy'),
+            };
+
+            const data = calcAll(params);
+            renderResults(data);
+        }
+
+        document.getElementById('calcBtn').addEventListener('click', calculate);
+
+        // Press Enter on any input → calculate
+        document.querySelectorAll('input').forEach(el => {
+            el.addEventListener('keydown', e => {
+                if (e.key === 'Enter') calculate();
+            });
+        });
+
+        // ============================================================
+        // AUTO-CALC ON ENTER (init with default values)
+        // ============================================================
+        // Don't auto-calc on load — let user click button
+        // But for demo, we auto-calc after a short delay
+        setTimeout(calculate, 300);
+
+        console.log('🏠 房贷提前还款计算器已加载');
+        console.log('💡 拖动滑块调整参数，点击"开始计算"查看结果');
+    </script>
+
+</body>
+</html>
